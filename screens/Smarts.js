@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ImageBackground } from 'react-native';
+import { StyleSheet, Text, View, ImageBackground ,Button, Switch } from 'react-native';
 import {useEffect,useState} from 'react';
 import { db, ref, onValue } from "../firebase";
 
@@ -11,6 +11,8 @@ const Smarts = () => {
   const [temp ,settemp] = useState('0');
   const [humdity, sethumidiy] = useState('0');
   const [pressure, setpressure]= useState('0')
+  const [isEnabled, setIsEnabled] = useState(false);
+  const toggleSwitch = () => setIsEnabled(previousState => !previousState);
 
   useEffect(()=>{
     const data = ref(db)
@@ -24,10 +26,25 @@ const Smarts = () => {
   
   return (   
     <ImageBackground source={background} style={styles.backgroundImage}>
+      {/* welcome text? */}
     <View style={styles.container}>
         <Text style={styles.text}>
           {temp}°          
         </Text>
+    </View>
+
+    {/* light swith  */}
+
+    <View styles={styles.top}>
+      <Switch
+        trackColor={{ false: "#767577", true: "#81b0ff" }}
+        thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
+        ios_backgroundColor="#3e3e3e"
+        onValueChange={toggleSwitch}
+        value={isEnabled}
+      />
+
+      
     </View>
 
     <View style={styles.data}>
@@ -164,4 +181,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Helvetica",
   },
+  top :{
+    textAlign:'left',
+    paddingRight: 35,
+  }
 });
