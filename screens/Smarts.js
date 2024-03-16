@@ -10,9 +10,11 @@ import background from "../assets/background.webp";
 const Smarts = () => {
   const [temp ,settemp] = useState('0');
   const [humdity, sethumidiy] = useState('0');
-  const [pressure, setpressure]= useState('0')
+  const [pressure, setpressure]= useState('0');
+  const [lightOne, setlightOne] = useState('');
   const [isEnabled, setIsEnabled] = useState(false);
   const toggleSwitch = () => setIsEnabled(previousState => !previousState);
+
 
   useEffect(()=>{
     const data = ref(db)
@@ -21,6 +23,7 @@ const Smarts = () => {
       settemp(snapshot.val().temp)
       sethumidiy(snapshot.val().humid)
       setpressure(snapshot.val().pressue)
+      setlightOne(snapshot.val().light)
     })
   },[db])
   
@@ -36,15 +39,14 @@ const Smarts = () => {
     {/* light swith  */}
 
     <View styles={styles.top}>
-      <Switch
+    <Text>Room lights{lightOne}</Text>
+      <Switch 
         trackColor={{ false: "#767577", true: "#81b0ff" }}
         thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
         ios_backgroundColor="#3e3e3e"
         onValueChange={toggleSwitch}
         value={isEnabled}
       />
-
-      
     </View>
 
     <View style={styles.data}>
@@ -108,7 +110,6 @@ export default Smarts;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, // Ensures the container fills the whole screen
     alignItems: 'center', // Centers the content horizontally
   },
   backgroundImage: {
@@ -124,6 +125,16 @@ const styles = StyleSheet.create({
     textAlign:'left',
     paddingRight: 35,
     
+  },
+  top :{
+    flex: 1,
+    textAlign:'right',
+    paddingRight: 35,
+    alignItems: 'right',
+    borderRadius: 20,
+    borderWidth: 5,
+    borderColor: "yellow",
+    color: 'red',
   },
   data: {
     flex: 1,
@@ -181,8 +192,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Helvetica",
   },
-  top :{
-    textAlign:'left',
-    paddingRight: 35,
-  }
 });
