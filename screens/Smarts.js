@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View, ImageBackground ,Button, Switch } from 'react-native';
+import { StyleSheet, Text, View, ImageBackground ,Button, Switch , Image } from 'react-native';
 import {useEffect,useState} from 'react';
-import { db, ref, onValue } from "../firebase";
+import { db, ref, onValue ,set} from "../firebase";
 
 import background from "../assets/background.webp";
-// import { DataSnapshot } from 'firebase/database'; idk what this does ik can be just snap snapshots
+import windowOpen from "../assets/windowOpen.webp";
+import windowClosed from "../assets/windowClosed.webp";
 
 const Smarts = () => {
   const [temp ,settemp] = useState('0');
@@ -12,7 +13,22 @@ const Smarts = () => {
   const [windows, setwindows] = useState(false);
 
   const [isEnabled, setIsEnabled] = useState(false); 
-  const toggleSwitch = () => setIsEnabled(previousState => !previousState);
+
+  const toggleSwitch = () => {
+    setIsEnabled(previousState => {
+      const newState = !previousState;
+      
+      // updating value form clintside to database 
+      const switchRef = ref(db,'light'); // after db the name of the value aka the path
+      set(switchRef, newState).then(() => {
+        console.log("Light switch state updated in database successfully.");
+      }).catch((error) => {
+        console.error("Error updating light switch state in database: ", error);
+      });
+
+      return newState;
+    });
+  };
 
   // inport form a database and updata static for user
   useEffect(()=>{
@@ -32,13 +48,13 @@ const Smarts = () => {
       {/* welcome text? */}
     <View style={styles.container}>
         <Text style={styles.text}>
-          {temp}°          
+          Smart home
         </Text>
     </View>
 
     {/* light swith  */}
 
-    <View styles={styles.top}>
+    <View styles={styles.dataWrapperONe}>
     <Text>Room lights</Text>
       <Switch 
         trackColor={{ false: "#767577", true: "#81b0ff" }}
@@ -47,6 +63,14 @@ const Smarts = () => {
         onValueChange={toggleSwitch}
         value={isEnabled}
       />
+    </View>
+
+    <View>
+    <Image
+          source={windows ? windowOpen : windowClosed}
+          style={styles.windowImage}
+        />
+        <Text>Window</Text>
     </View>
 
     <View style={styles.data}>
@@ -117,9 +141,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center', // Centers the child content vertically
     alignItems: 'center', // Centers the child content horizontally
   },
+  windowImage: {
+    width: 100, 
+    height: 100, 
+    margin: 20,
+  },
   text: {
     color: 'white', 
-    fontSize: 80, // Sets the size of the text
+    fontSize: 50, 
     fontWeight:'bold',
     textAlign:'left',
     paddingRight: 35,
@@ -133,6 +162,7 @@ const styles = StyleSheet.create({
     borderWidth: 5,
     borderColor: "yellow",
     color: 'red',
+    justifyContent:'flex-end',
   },
   data: {
     flex: 1,
@@ -157,6 +187,17 @@ const styles = StyleSheet.create({
   },
   dataWrapper: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
+    flexDirection: "row",
+    height: "20%",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "80%",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "white",
+  },
+  dataWrapperOne: {
+    backgroundColor: "gray",
     flexDirection: "row",
     height: "20%",
     justifyContent: "center",
