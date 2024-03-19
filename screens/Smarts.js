@@ -54,7 +54,7 @@ const Smarts = () => {
 
     {/* light swith  */}
 
-    <View styles={styles.dataWrapperONe}>
+    <View styles={styles.dataWrapperOne}>
     <Text>Room lights</Text>
       <Switch 
         trackColor={{ false: "#767577", true: "#81b0ff" }}
@@ -206,6 +206,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "white",
+    marginTop: 15,
   },
   humid: {
     flex: 1,
