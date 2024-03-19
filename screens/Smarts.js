@@ -123,7 +123,6 @@ const styles = StyleSheet.create({
     fontWeight:'bold',
     textAlign:'left',
     paddingRight: 35,
-    
   },
   top :{
     flex: 1,
