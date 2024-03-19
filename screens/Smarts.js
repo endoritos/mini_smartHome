@@ -5,17 +5,16 @@ import { db, ref, onValue } from "../firebase";
 import background from "../assets/background.webp";
 // import { DataSnapshot } from 'firebase/database'; idk what this does ik can be just snap snapshots
 
-
-// inport form a database and updata static for user 
 const Smarts = () => {
   const [temp ,settemp] = useState('0');
   const [humdity, sethumidiy] = useState('0');
   const [pressure, setpressure]= useState('0');
-  const [lightOne, setlightOne] = useState('');
-  const [isEnabled, setIsEnabled] = useState(false);
+  const [windows, setwindows] = useState(false);
+
+  const [isEnabled, setIsEnabled] = useState(false); 
   const toggleSwitch = () => setIsEnabled(previousState => !previousState);
 
-
+  // inport form a database and updata static for user
   useEffect(()=>{
     const data = ref(db)
 
@@ -23,7 +22,8 @@ const Smarts = () => {
       settemp(snapshot.val().temp)
       sethumidiy(snapshot.val().humid)
       setpressure(snapshot.val().pressue)
-      setlightOne(snapshot.val().light)
+      setIsEnabled(snapshot.val().light)
+      setwindows(snapshot.val().windows)
     })
   },[db])
   
@@ -39,7 +39,7 @@ const Smarts = () => {
     {/* light swith  */}
 
     <View styles={styles.top}>
-    <Text>Room lights{lightOne}</Text>
+    <Text>Room lights</Text>
       <Switch 
         trackColor={{ false: "#767577", true: "#81b0ff" }}
         thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
@@ -57,22 +57,22 @@ const Smarts = () => {
         {/* day  */}
       <View style={styles.dataWrapperM}>
         <View style={styles.humid}>
-          <Text style={styles.dataText}>trun{humdity}</Text>
+          <Text style={styles.dataText}>{humdity}kwa</Text>
           <Text style={styles.title}>Day</Text>
         </View>
           {/* week */}
         <View style={styles.humid}>
-          <Text style={styles.dataText}>trun{humdity}</Text>
+          <Text style={styles.dataText}>{humdity}kwa</Text>
           <Text style={styles.title}>Week</Text>
         </View>
           {/* month */}
         <View style={styles.humid}>
-          <Text style={styles.dataText}>trun{humdity}</Text>
+          <Text style={styles.dataText}>{humdity}kwa</Text>
           <Text style={styles.title}>Month</Text>
         </View>
             {/* year */}
         <View style={styles.pressure}>
-          <Text style={styles.title}>{pressure}</Text>
+          <Text style={styles.title}>{pressure}kwa</Text>
           <Text style={styles.dataText}>Year</Text>
           </View>
       </View>
@@ -81,26 +81,25 @@ const Smarts = () => {
 
       <View style={styles.dataWrapper}>
       <View style={styles.humid}>
-          <Text style={styles.dataText}>trun{humdity}</Text>
+          <Text style={styles.dataText}>{humdity}€</Text>
           <Text style={styles.title}>Day</Text>
         </View>
           {/* week */}
         <View style={styles.humid}>
-          <Text style={styles.dataText}>trun{humdity}</Text>
+          <Text style={styles.dataText}>{humdity}€</Text>
           <Text style={styles.title}>Week</Text>
         </View>
           {/* month */}
         <View style={styles.humid}>
-          <Text style={styles.dataText}>trun{humdity}</Text>
+          <Text style={styles.dataText}>{humdity}€</Text>
           <Text style={styles.title}>Month</Text>
         </View>
             {/* year */}
         <View style={styles.pressure}>
-          <Text style={styles.title}>{pressure}</Text>
+          <Text style={styles.title}>{pressure}€</Text>
           <Text style={styles.dataText}>Year</Text>
           </View>
       </View>
-
     </View>
     </ImageBackground>
   );
