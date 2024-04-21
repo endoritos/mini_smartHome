@@ -45,6 +45,7 @@ const Smarts = () => {
   
   return (   
     <ImageBackground source={background} style={styles.backgroundImage}>
+    <View style={styles.spacer1}></View>
       {/* welcome text? */}
     <View style={styles.container}>
         <Text style={styles.text}>
@@ -55,7 +56,7 @@ const Smarts = () => {
     {/* light swith  */}
 
     <View styles={styles.dataWrapperOne}>
-    <Text>Room lights</Text>
+    <Text>Lichten</Text>
       <Switch 
         trackColor={{ false: "#767577", true: "#81b0ff" }}
         thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
@@ -76,13 +77,13 @@ const Smarts = () => {
     <View style={styles.data}>
       <View style={styles.spacer}></View>
 
-      <Text style={styles.title}>Enegie usage</Text>
+      <Text style={styles.title}>Energie Gebruik</Text>
 
-        {/* day  */}
+        {/* Dag  */}
       <View style={styles.dataWrapperM}>
         <View style={styles.humid}>
           <Text style={styles.dataText}>{humdity}kwa</Text>
-          <Text style={styles.title}>Day</Text>
+          <Text style={styles.title}>Dag</Text>
         </View>
           {/* week */}
         <View style={styles.humid}>
@@ -92,21 +93,21 @@ const Smarts = () => {
           {/* month */}
         <View style={styles.humid}>
           <Text style={styles.dataText}>{humdity}kwa</Text>
-          <Text style={styles.title}>Month</Text>
+          <Text style={styles.title}>Maand</Text>
         </View>
             {/* year */}
         <View style={styles.pressure}>
           <Text style={styles.title}>{pressure}kwa</Text>
-          <Text style={styles.dataText}>Year</Text>
+          <Text style={styles.dataText}>Jaar</Text>
           </View>
       </View>
 
-      <Text style={styles.title}>Money usage</Text>
+      <Text style={styles.title}>Geld Gebruik</Text>
 
       <View style={styles.dataWrapper}>
       <View style={styles.humid}>
           <Text style={styles.dataText}>{humdity}€</Text>
-          <Text style={styles.title}>Day</Text>
+          <Text style={styles.title}>Dag</Text>
         </View>
           {/* week */}
         <View style={styles.humid}>
@@ -116,12 +117,12 @@ const Smarts = () => {
           {/* month */}
         <View style={styles.humid}>
           <Text style={styles.dataText}>{humdity}€</Text>
-          <Text style={styles.title}>Month</Text>
+          <Text style={styles.title}>Maand</Text>
         </View>
             {/* year */}
         <View style={styles.pressure}>
           <Text style={styles.title}>{pressure}€</Text>
-          <Text style={styles.dataText}>Year</Text>
+          <Text style={styles.dataText}>Jaar</Text>
           </View>
       </View>
     </View>
@@ -172,6 +173,9 @@ const styles = StyleSheet.create({
     },
   spacer: {
     height: "30%",
+  },
+  spacer1: {
+    height: "15%",
   },
   dataWrapperM: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
