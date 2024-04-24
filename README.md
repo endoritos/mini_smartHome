@@ -3,9 +3,9 @@
 
 Welcome to my first try to react native building a mini smart home
 
-This app brings the abillty to see if your windows are u-open or closed
-The abiliit to turn on and off your lights
-and see what your usage and engegie is 
+This app brings the abillty to see if your windows are open or closed
+The ability to turn on and off your lights
+and see what your energy and money usage is for every day/month/year
 all done in de back end with and Build ESP32 and more 7
 
 
