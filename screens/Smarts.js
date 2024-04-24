@@ -17,7 +17,7 @@ const Smarts = () => {
   const toggleSwitch = () => {
     setIsEnabled(previousState => {
       const newState = !previousState;
-      
+      //to db
       // updating value form clintside to database 
       const switchRef = ref(db,'light'); // after db the name of the value aka the path
       set(switchRef, newState).then(() => {
@@ -29,7 +29,7 @@ const Smarts = () => {
       return newState;
     });
   };
-
+  // form DB
   // inport form a database and updata static for user
   useEffect(()=>{
     const data = ref(db)
@@ -41,9 +41,10 @@ const Smarts = () => {
       setIsEnabled(snapshot.val().light)
       setwindows(snapshot.val().windows)
     })
-  },[db])
+  },[db]) //checks db for changes then updates 
   
-  return (   
+  return (
+    // divs aka containers 
     <ImageBackground source={background} style={styles.backgroundImage}>
     <View style={styles.spacer1}></View>
       {/* welcome text? */}
@@ -132,6 +133,7 @@ const Smarts = () => {
 
 export default Smarts;
 
+  // Styling for divs 
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center', // Centers the content horizontally
