@@ -7,7 +7,7 @@
     "icon": "./assets/appIcon.webp",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/zoro.png",
+      "image": "./assets/smartload.webp",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
