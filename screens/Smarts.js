@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, ImageBackground, Button, Switch, Image } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { db, ref, onValue, set } from "../firebase";
 
 import background from "../assets/bbl.png";
@@ -7,14 +7,16 @@ import windowOpen from "../assets/windowOpen.webp";
 import windowClosed from "../assets/windowClosed.webp";
 
 const Smarts = () => {
-  const [temp, settemp] = useState('0');
-  const [humidity, sethumidity] = useState('0');
-  const [pressure, setpressure] = useState('0');
   const [windows, setwindows] = useState(false);
   const [current, setcurrent] = useState('0');
-  const [usageHoursPerDay, setUsageHoursPerDay] = useState(5); // Usage hours per day
+  const [usageTime, setUsageTime] = useState(0); // in seconds
+
+  const [dailyUsage, setDailyUsage] = useState(0);
+  const [monthlyUsage, setMonthlyUsage] = useState(0);
+  const [yearlyUsage, setYearlyUsage] = useState(0);
 
   const [isEnabled, setIsEnabled] = useState(false); 
+  const timerRef = useRef(null);
 
   const toggleSwitch = () => {
     setIsEnabled(previousState => {
@@ -27,58 +29,135 @@ const Smarts = () => {
         console.error("Error updating light switch state in database: ", error);
       });
 
+      if (newState) {
+        startTimer();
+      } else {
+        stopTimer();
+      }
+
       return newState;
     });
   };
 
-  // Import data from database and update state
+  const startTimer = () => {
+    if (!timerRef.current) {
+      timerRef.current = setInterval(() => {
+        setUsageTime(prevTime => prevTime + 1);
+      }, 1000);
+    }
+  };
+
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
   useEffect(() => {
     const data = ref(db);
 
     onValue(data, (snapshot) => {
-      settemp(snapshot.val().temp);
-      sethumidity(snapshot.val().humidity);
-      setpressure(snapshot.val().pressure);
       setIsEnabled(snapshot.val().light);
       setwindows(snapshot.val().windows);
       setcurrent(snapshot.val().current);
-    });
-  }, [db]); // Checks db for changes then updates 
+      setDailyUsage(snapshot.val().dailyUsage || 0);
+      setMonthlyUsage(snapshot.val().monthlyUsage || 0);
+      setYearlyUsage(snapshot.val().yearlyUsage || 0);
 
-  // Calculate energy usage
-  const watts = current * 230
-  
-  const dailyEnergyUsage = (watts * usageHoursPerDay) / 1000; // in kWh
-  const monthlyEnergyUsage = dailyEnergyUsage * 30; //  30 days in a month
-  const yearlyEnergyUsage = dailyEnergyUsage * 365; //  365 days in a year
+      if (snapshot.val().light) {
+        startTimer();
+      } else {
+        stopTimer();
+      }
+    });
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        resetDailyUsage(); // Reset daily usage at midnight
+      }
+      if (now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
+        resetMonthlyUsage(); // Reset monthly usage on the first day of the month
+      }
+      if (now.getMonth() === 0 && now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
+        resetYearlyUsage(); // Reset yearly usage on the first day of the year
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      clearInterval(interval);
+      stopTimer();
+    };
+  }, [db]);
+
+  useEffect(() => {
+    const watts = current * 230;
+    const energyUsage = (watts * (usageTime / 3600)) / 1000; // in kWh
+
+    setDailyUsage(prevUsage => {
+      const newDailyUsage = prevUsage + energyUsage;
+      updateDatabase('dailyUsage', newDailyUsage);
+      return newDailyUsage;
+    });
+    setMonthlyUsage(prevUsage => {
+      const newMonthlyUsage = prevUsage + energyUsage;
+      updateDatabase('monthlyUsage', newMonthlyUsage);
+      return newMonthlyUsage;
+    });
+    setYearlyUsage(prevUsage => {
+      const newYearlyUsage = prevUsage + energyUsage;
+      updateDatabase('yearlyUsage', newYearlyUsage);
+      return newYearlyUsage;
+    });
+  }, [usageTime, current]);
+
+  const updateDatabase = (path, value) => {
+    const dbRef = ref(db, path);
+    set(dbRef, value).catch(error => console.error(`Error updating ${path}: `, error));
+  };
+
+  const resetDailyUsage = () => {
+    setDailyUsage(0);
+    setUsageTime(0); // Optionally reset usage time as well
+    updateDatabase('dailyUsage', 0);
+  };
+
+  const resetMonthlyUsage = () => {
+    setMonthlyUsage(0);
+    updateDatabase('monthlyUsage', 0);
+  };
+
+  const resetYearlyUsage = () => {
+    setYearlyUsage(0);
+    updateDatabase('yearlyUsage', 0);
+  };
 
   return (
-    // Containers
     <ImageBackground source={background} style={styles.backgroundImage}>
       <View style={styles.spacer1}></View>
-      {/* Welcome text */}
       <View style={styles.container}>
         <Text style={styles.text}>Smart home</Text>
       </View>
 
-      {/* Light switch */}
-      <View styles={styles.dataWrapperOne}>
-        <Text style={styles.color}>Lichten</Text>
-        <Switch 
-          trackColor={{ false: "#767577", true: "#81b0ff" }}
-          thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
-          ios_backgroundColor="#3e3e3e"
-          onValueChange={toggleSwitch}
-          value={isEnabled}
-        />
-      </View>
-
-      <View>
-        <Text style={styles.color}>Window</Text>
-        <Image
-          source={windows ? windowOpen : windowClosed}
-          style={styles.windowImage}
-        />
+      <View style={styles.verticalContainer}>
+        <View style={styles.centeredContainer}>
+          <Text style={styles.color}>Lichten</Text>
+          <Switch 
+            trackColor={{ false: "#767577", true: "#81b0ff" }}
+            thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
+            ios_backgroundColor="#3e3e3e"
+            onValueChange={toggleSwitch}
+            value={isEnabled}
+          />
+        </View>
+        <View style={styles.centeredContainer}>
+          <Text style={styles.color}>Raam</Text>
+          <Image
+            source={windows ? windowOpen : windowClosed}
+            style={styles.windowImage}
+          />
+        </View>
       </View>
 
       <View style={styles.data}>
@@ -86,18 +165,17 @@ const Smarts = () => {
 
         <Text style={styles.title}>Energie Gebruik</Text>
 
-        {/* Energy usage */}
         <View style={styles.dataWrapperM}>
           <View style={styles.humid}>
-            <Text style={styles.dataText}>{dailyEnergyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.dataText}>{dailyUsage.toFixed(2)} kWh</Text>
             <Text style={styles.title}>Dag</Text>
           </View>
           <View style={styles.humid}>
-            <Text style={styles.dataText}>{monthlyEnergyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.dataText}>{monthlyUsage.toFixed(2)} kWh</Text>
             <Text style={styles.title}>Maand</Text>
           </View>
           <View style={styles.pressure}>
-            <Text style={styles.dataText}>{yearlyEnergyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.dataText}>{yearlyUsage.toFixed(2)} kWh</Text>
             <Text style={styles.title}>Jaar</Text>
           </View>
         </View>
@@ -106,18 +184,22 @@ const Smarts = () => {
 
         <View style={styles.dataWrapper}>
           <View style={styles.humid}>
-            <Text style={styles.dataText}>{(dailyEnergyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.dataText}>{(dailyUsage * 0.2).toFixed(2)} €</Text>
             <Text style={styles.title}>Dag</Text>
           </View>
           <View style={styles.humid}>
-            <Text style={styles.dataText}>{(monthlyEnergyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.dataText}>{(monthlyUsage * 0.2).toFixed(2)} €</Text>
             <Text style={styles.title}>Maand</Text>
           </View>
           <View style={styles.pressure}>
-            <Text style={styles.dataText}>{(yearlyEnergyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.dataText}>{(yearlyUsage * 0.2).toFixed(2)} €</Text>
             <Text style={styles.title}>Jaar</Text>
           </View>
         </View>
+        
+        {/* Add buttons to reset usage */}
+        <Button title="Reset Daily Usage" onPress={resetDailyUsage} />
+        
       </View>
     </ImageBackground>
   );
@@ -136,17 +218,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  verticalContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  centeredContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
   windowImage: {
-    width: 100,
-    height: 100,
+    width: 100, 
+    height: 100, 
     margin: 20,
   },
   text: {
-    color: 'white',
-    fontSize: 50,
-    fontWeight: 'bold',
-    textAlign: 'left',
-    paddingRight: 35,
+    color: 'white', 
+    fontSize: 50, 
+    fontWeight:'bold',
+    textAlign:'center',
   },
   data: {
     flex: 1,
@@ -183,18 +273,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "white",
   },
-  dataWrapperOne: {
-    backgroundColor: "gray",
-    flexDirection: "row",
-    height: "20%",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "80%",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "white",
-    marginTop: 15,
-  },
   humid: {
     flex: 1,
     justifyContent: "center",
@@ -215,12 +293,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 12,
     fontWeight: "bold",
-    color: "white",
+    color: "Black",
     textAlign: "center",
     fontFamily: "Helvetica",
   },
   color: {
     color: "white",
-    marginLeft: 100,
   },
 });
