@@ -1,25 +1,26 @@
-import { StyleSheet, Text, View, ImageBackground ,Button, Switch , Image } from 'react-native';
-import {useEffect,useState} from 'react';
-import { db, ref, onValue ,set} from "../firebase";
+import { StyleSheet, Text, View, ImageBackground, Button, Switch, Image } from 'react-native';
+import { useEffect, useState } from 'react';
+import { db, ref, onValue, set } from "../firebase";
 
-import background from "../assets/background.webp";
+import background from "../assets/bbl.png";
 import windowOpen from "../assets/windowOpen.webp";
 import windowClosed from "../assets/windowClosed.webp";
 
 const Smarts = () => {
-  const [temp ,settemp] = useState('0');
-  const [humdity, sethumidiy] = useState('0');
-  const [pressure, setpressure]= useState('0');
+  const [temp, settemp] = useState('0');
+  const [humidity, sethumidity] = useState('0');
+  const [pressure, setpressure] = useState('0');
   const [windows, setwindows] = useState(false);
+  const [current, setcurrent] = useState('0');
+  const [usageHoursPerDay, setUsageHoursPerDay] = useState(5); // Usage hours per day
 
   const [isEnabled, setIsEnabled] = useState(false); 
 
   const toggleSwitch = () => {
     setIsEnabled(previousState => {
       const newState = !previousState;
-      //to db
-      // updating value form clintside to database 
-      const switchRef = ref(db,'light'); // after db the name of the value aka the path
+      // Update value from client side to database 
+      const switchRef = ref(db, 'light');
       set(switchRef, newState).then(() => {
         console.log("Light switch state updated in database successfully.");
       }).catch((error) => {
@@ -29,150 +30,130 @@ const Smarts = () => {
       return newState;
     });
   };
-  // form DB
-  // inport form a database and updata static for user
-  useEffect(()=>{
-    const data = ref(db)
 
-    onValue(data, (snapshot)=>{
-      settemp(snapshot.val().temp)
-      sethumidiy(snapshot.val().humid)
-      setpressure(snapshot.val().pressue)
-      setIsEnabled(snapshot.val().light)
-      setwindows(snapshot.val().windows)
-    })
-  },[db]) //checks db for changes then updates 
+  // Import data from database and update state
+  useEffect(() => {
+    const data = ref(db);
+
+    onValue(data, (snapshot) => {
+      settemp(snapshot.val().temp);
+      sethumidity(snapshot.val().humidity);
+      setpressure(snapshot.val().pressure);
+      setIsEnabled(snapshot.val().light);
+      setwindows(snapshot.val().windows);
+      setcurrent(snapshot.val().current);
+    });
+  }, [db]); // Checks db for changes then updates 
+
+  // Calculate energy usage
+  const watts = current * 230
   
+  const dailyEnergyUsage = (watts * usageHoursPerDay) / 1000; // in kWh
+  const monthlyEnergyUsage = dailyEnergyUsage * 30; //  30 days in a month
+  const yearlyEnergyUsage = dailyEnergyUsage * 365; //  365 days in a year
+
   return (
-    // divs aka containers 
+    // Containers
     <ImageBackground source={background} style={styles.backgroundImage}>
-    <View style={styles.spacer1}></View>
-      {/* welcome text? */}
-    <View style={styles.container}>
-        <Text style={styles.text}>
-          Smart home
-        </Text>
-    </View>
+      <View style={styles.spacer1}></View>
+      {/* Welcome text */}
+      <View style={styles.container}>
+        <Text style={styles.text}>Smart home</Text>
+      </View>
 
-    {/* light swith  */}
+      {/* Light switch */}
+      <View styles={styles.dataWrapperOne}>
+        <Text style={styles.color}>Lichten</Text>
+        <Switch 
+          trackColor={{ false: "#767577", true: "#81b0ff" }}
+          thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
+          ios_backgroundColor="#3e3e3e"
+          onValueChange={toggleSwitch}
+          value={isEnabled}
+        />
+      </View>
 
-    <View styles={styles.dataWrapperOne}>
-    <Text>Lichten</Text>
-      <Switch 
-        trackColor={{ false: "#767577", true: "#81b0ff" }}
-        thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
-        ios_backgroundColor="#3e3e3e"
-        onValueChange={toggleSwitch}
-        value={isEnabled}
-      />
-    </View>
-
-    <View>
-    <Image
+      <View>
+        <Text style={styles.color}>Window</Text>
+        <Image
           source={windows ? windowOpen : windowClosed}
           style={styles.windowImage}
         />
-        <Text>Window</Text>
-    </View>
-
-    <View style={styles.data}>
-      <View style={styles.spacer}></View>
-
-      <Text style={styles.title}>Energie Gebruik</Text>
-
-        {/* Dag  */}
-      <View style={styles.dataWrapperM}>
-        <View style={styles.humid}>
-          <Text style={styles.dataText}>{humdity}kwa</Text>
-          <Text style={styles.title}>Dag</Text>
-        </View>
-          {/* week */}
-        <View style={styles.humid}>
-          <Text style={styles.dataText}>{humdity}kwa</Text>
-          <Text style={styles.title}>Week</Text>
-        </View>
-          {/* month */}
-        <View style={styles.humid}>
-          <Text style={styles.dataText}>{humdity}kwa</Text>
-          <Text style={styles.title}>Maand</Text>
-        </View>
-            {/* year */}
-        <View style={styles.pressure}>
-          <Text style={styles.title}>{pressure}kwa</Text>
-          <Text style={styles.dataText}>Jaar</Text>
-          </View>
       </View>
 
-      <Text style={styles.title}>Geld Gebruik</Text>
+      <View style={styles.data}>
+        <View style={styles.spacer}></View>
 
-      <View style={styles.dataWrapper}>
-      <View style={styles.humid}>
-          <Text style={styles.dataText}>{humdity}€</Text>
-          <Text style={styles.title}>Dag</Text>
-        </View>
-          {/* week */}
-        <View style={styles.humid}>
-          <Text style={styles.dataText}>{humdity}€</Text>
-          <Text style={styles.title}>Week</Text>
-        </View>
-          {/* month */}
-        <View style={styles.humid}>
-          <Text style={styles.dataText}>{humdity}€</Text>
-          <Text style={styles.title}>Maand</Text>
-        </View>
-            {/* year */}
-        <View style={styles.pressure}>
-          <Text style={styles.title}>{pressure}€</Text>
-          <Text style={styles.dataText}>Jaar</Text>
+        <Text style={styles.title}>Energie Gebruik</Text>
+
+        {/* Energy usage */}
+        <View style={styles.dataWrapperM}>
+          <View style={styles.humid}>
+            <Text style={styles.dataText}>{dailyEnergyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.title}>Dag</Text>
           </View>
+          <View style={styles.humid}>
+            <Text style={styles.dataText}>{monthlyEnergyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.title}>Maand</Text>
+          </View>
+          <View style={styles.pressure}>
+            <Text style={styles.dataText}>{yearlyEnergyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.title}>Jaar</Text>
+          </View>
+        </View>
+
+        <Text style={styles.title}>Geld Gebruik</Text>
+
+        <View style={styles.dataWrapper}>
+          <View style={styles.humid}>
+            <Text style={styles.dataText}>{(dailyEnergyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.title}>Dag</Text>
+          </View>
+          <View style={styles.humid}>
+            <Text style={styles.dataText}>{(monthlyEnergyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.title}>Maand</Text>
+          </View>
+          <View style={styles.pressure}>
+            <Text style={styles.dataText}>{(yearlyEnergyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.title}>Jaar</Text>
+          </View>
+        </View>
       </View>
-    </View>
     </ImageBackground>
   );
 };
 
 export default Smarts;
 
-  // Styling for divs 
+// Styling for containers
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center', // Centers the content horizontally
+    alignItems: 'center',
   },
   backgroundImage: {
-    width: '100%', // Makes sure the background image covers the width of the screen
-    height: '100%', // Makes sure the background image covers the height of the screen
-    justifyContent: 'center', // Centers the child content vertically
-    alignItems: 'center', // Centers the child content horizontally
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   windowImage: {
-    width: 100, 
-    height: 100, 
+    width: 100,
+    height: 100,
     margin: 20,
   },
   text: {
-    color: 'white', 
-    fontSize: 50, 
-    fontWeight:'bold',
-    textAlign:'left',
+    color: 'white',
+    fontSize: 50,
+    fontWeight: 'bold',
+    textAlign: 'left',
     paddingRight: 35,
-  },
-  top :{
-    flex: 1,
-    textAlign:'right',
-    paddingRight: 35,
-    alignItems: 'right',
-    borderRadius: 20,
-    borderWidth: 5,
-    borderColor: "yellow",
-    color: 'red',
-    justifyContent:'flex-end',
   },
   data: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
-    },
+  },
   spacer: {
     height: "30%",
   },
@@ -180,7 +161,7 @@ const styles = StyleSheet.create({
     height: "15%",
   },
   dataWrapperM: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "#72777a",
     flexDirection: "row",
     height: "20%",
     justifyContent: "center",
@@ -192,7 +173,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   dataWrapper: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "#72777a",
     flexDirection: "row",
     height: "20%",
     justifyContent: "center",
@@ -218,7 +199,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  }, 
+  },
   pressure: {
     flex: 1,
     justifyContent: "center",
@@ -237,5 +218,9 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     fontFamily: "Helvetica",
+  },
+  color: {
+    color: "white",
+    marginLeft: 100,
   },
 });
