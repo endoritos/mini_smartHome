@@ -1,27 +1,56 @@
+import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, Text, View, ImageBackground, Button, Switch, Image } from 'react-native';
-import { useEffect, useState, useRef } from 'react';
+import * as TaskManager from 'expo-task-manager';
+import * as BackgroundFetch from 'expo-background-fetch';
 import { db, ref, onValue, set } from "../firebase";
 
 import background from "../assets/bbl.png";
 import windowOpen from "../assets/windowOpen.webp";
 import windowClosed from "../assets/windowClosed.webp";
 
+const BACKGROUND_FETCH_TASK = 'background-fetch-task';
+
+TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
+  try {
+    const timestamp = Date.now();
+    console.log(`Background fetch executed at: ${new Date(timestamp).toISOString()}`);
+
+    // Fetch data from the database or perform any background logic
+    // Example: Update a timestamp in the database
+    await set(ref(db, 'lastFetchTimestamp'), timestamp);
+
+    return BackgroundFetch.BackgroundFetchResult.NewData;
+  } catch (error) {
+    console.error('Background fetch failed:', error);
+    return BackgroundFetch.BackgroundFetchResult.Failed;
+  }
+});
+
+const registerBackgroundFetchAsync = async () => {
+  return BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
+    minimumInterval: 15 * 60, // 15 minutes
+    stopOnTerminate: false,   // iOS only
+    startOnBoot: true,        // Android only
+  });
+};
+
+const unregisterBackgroundFetchAsync = async () => {
+  return BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK);
+};
+
 const Smarts = () => {
   const [windows, setwindows] = useState(false);
   const [current, setcurrent] = useState('0');
   const [usageTime, setUsageTime] = useState(0); // in seconds
-
   const [dailyUsage, setDailyUsage] = useState(0);
   const [monthlyUsage, setMonthlyUsage] = useState(0);
   const [yearlyUsage, setYearlyUsage] = useState(0);
-
-  const [isEnabled, setIsEnabled] = useState(false); 
+  const [isEnabled, setIsEnabled] = useState(false);
   const timerRef = useRef(null);
 
   const toggleSwitch = () => {
     setIsEnabled(previousState => {
       const newState = !previousState;
-      // Update value from client side to database 
       const switchRef = ref(db, 'light');
       set(switchRef, newState).then(() => {
         console.log("Light switch state updated in database successfully.");
@@ -72,21 +101,10 @@ const Smarts = () => {
       }
     });
 
-    const interval = setInterval(() => {
-      const now = new Date();
-      if (now.getHours() === 0 && now.getMinutes() === 0) {
-        resetDailyUsage(); // Reset daily usage at midnight
-      }
-      if (now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
-        resetMonthlyUsage(); // Reset monthly usage on the first day of the month
-      }
-      if (now.getMonth() === 0 && now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
-        resetYearlyUsage(); // Reset yearly usage on the first day of the year
-      }
-    }, 60000); // Check every minute
+    registerBackgroundFetchAsync();
 
     return () => {
-      clearInterval(interval);
+      unregisterBackgroundFetchAsync();
       stopTimer();
     };
   }, [db]);
@@ -98,16 +116,19 @@ const Smarts = () => {
     setDailyUsage(prevUsage => {
       const newDailyUsage = prevUsage + energyUsage;
       updateDatabase('dailyUsage', newDailyUsage);
+      updateDatabase('daily', newDailyUsage); // Duplicate into daily
       return newDailyUsage;
     });
     setMonthlyUsage(prevUsage => {
       const newMonthlyUsage = prevUsage + energyUsage;
       updateDatabase('monthlyUsage', newMonthlyUsage);
+      updateDatabase('monthly', newMonthlyUsage); // Duplicate into monthly
       return newMonthlyUsage;
     });
     setYearlyUsage(prevUsage => {
       const newYearlyUsage = prevUsage + energyUsage;
       updateDatabase('yearlyUsage', newYearlyUsage);
+      updateDatabase('yearly', newYearlyUsage); // Duplicate into yearly
       return newYearlyUsage;
     });
   }, [usageTime, current]);
@@ -119,18 +140,21 @@ const Smarts = () => {
 
   const resetDailyUsage = () => {
     setDailyUsage(0);
-    setUsageTime(0); // Optionally reset usage time as well
+    setUsageTime(0);
     updateDatabase('dailyUsage', 0);
+    updateDatabase('daily', 0); // Reset daily
   };
 
   const resetMonthlyUsage = () => {
     setMonthlyUsage(0);
     updateDatabase('monthlyUsage', 0);
+    updateDatabase('monthly', 0); // Reset monthly
   };
 
   const resetYearlyUsage = () => {
     setYearlyUsage(0);
     updateDatabase('yearlyUsage', 0);
+    updateDatabase('yearly', 0); // Reset yearly
   };
 
   return (
@@ -197,8 +221,9 @@ const Smarts = () => {
           </View>
         </View>
         
-        {/* Add buttons to reset usage */}
         <Button title="Reset Daily Usage" onPress={resetDailyUsage} />
+        <Button title="Reset Monthly Usage" onPress={resetMonthlyUsage} />
+        <Button title="Reset Yearly Usage" onPress={resetYearlyUsage} />
         
       </View>
     </ImageBackground>
