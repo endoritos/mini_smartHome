@@ -1,52 +1,20 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, Text, View, ImageBackground, Button, Switch, Image } from 'react-native';
-import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
 import { db, ref, onValue, set } from "../firebase";
 
 import background from "../assets/bbl.png";
 import windowOpen from "../assets/windowOpen.webp";
 import windowClosed from "../assets/windowClosed.webp";
 
-const BACKGROUND_FETCH_TASK = 'background-fetch-task';
-
-TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
-  try {
-    const timestamp = Date.now();
-    console.log(`Background fetch executed at: ${new Date(timestamp).toISOString()}`);
-
-    // Fetch data from the database or perform any background logic
-    // Example: Update a timestamp in the database
-    await set(ref(db, 'lastFetchTimestamp'), timestamp);
-
-    return BackgroundFetch.BackgroundFetchResult.NewData;
-  } catch (error) {
-    console.error('Background fetch failed:', error);
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
-
-const registerBackgroundFetchAsync = async () => {
-  return BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
-    minimumInterval: 15 * 60, // 15 minutes
-    stopOnTerminate: false,   // iOS only
-    startOnBoot: true,        // Android only
-  });
-};
-
-const unregisterBackgroundFetchAsync = async () => {
-  return BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK);
-};
-
 const Smarts = () => {
-  const [windows, setwindows] = useState(false);
-  const [current, setcurrent] = useState('0');
-  const [usageTime, setUsageTime] = useState(0); // in seconds
-  const [dailyUsage, setDailyUsage] = useState(0);
-  const [monthlyUsage, setMonthlyUsage] = useState(0);
-  const [yearlyUsage, setYearlyUsage] = useState(0);
+  const [windows, setWindows] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [dailykWh, setDailykWh] = useState(0);
+  const [monthlykWh, setMonthlykWh] = useState(0);
+  const [yearlykWh, setYearlykWh] = useState(0);
   const [isEnabled, setIsEnabled] = useState(false);
-  const timerRef = useRef(null);
+  const [usageTime, setUsageTime] = useState(0);
+  const intervalRef = useRef(null); // Declare intervalRef using useRef
 
   const toggleSwitch = () => {
     setIsEnabled(previousState => {
@@ -57,104 +25,65 @@ const Smarts = () => {
       }).catch((error) => {
         console.error("Error updating light switch state in database: ", error);
       });
-
-      if (newState) {
-        startTimer();
-      } else {
-        stopTimer();
-      }
-
       return newState;
     });
-  };
-
-  const startTimer = () => {
-    if (!timerRef.current) {
-      timerRef.current = setInterval(() => {
-        setUsageTime(prevTime => prevTime + 1);
-      }, 1000);
-    }
-  };
-
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
   };
 
   useEffect(() => {
     const data = ref(db);
 
     onValue(data, (snapshot) => {
-      setIsEnabled(snapshot.val().light);
-      setwindows(snapshot.val().windows);
-      setcurrent(snapshot.val().current);
-      setDailyUsage(snapshot.val().dailyUsage || 0);
-      setMonthlyUsage(snapshot.val().monthlyUsage || 0);
-      setYearlyUsage(snapshot.val().yearlyUsage || 0);
-
-      if (snapshot.val().light) {
-        startTimer();
-      } else {
-        stopTimer();
-      }
+      const data = snapshot.val();
+      console.log("Firebase Data:", data);
+      setIsEnabled(data.light);
+      setWindows(data.windows);
+      setCurrent(data.current);
+      setUsageTime(data.usageTime || 0);
+      setDailykWh(data.dailykWh || 0);
+      setMonthlykWh(data.monthlykWh || 0);
+      setYearlykWh(data.yearlykWh || 0);
     });
 
-    registerBackgroundFetchAsync();
+    intervalRef.current = setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        resetDailyUsage(); // Reset daily usage at midnight
+      }
+      if (now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
+        resetMonthlyUsage(); // Reset monthly usage on the first day of the month
+      }
+      if (now.getMonth() === 0 && now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
+        resetYearlyUsage(); // Reset yearly usage on the first day of the year
+      }
+    }, 60000); // Check every minute
 
     return () => {
-      unregisterBackgroundFetchAsync();
-      stopTimer();
+      clearInterval(intervalRef.current); // Clear interval on cleanup
     };
-  }, [db]);
+  }, []);
 
-  useEffect(() => {
-    const watts = current * 230;
-    const energyUsage = (watts * (usageTime / 3600)) / 1000; // in kWh
-
-    setDailyUsage(prevUsage => {
-      const newDailyUsage = prevUsage + energyUsage;
-      updateDatabase('dailyUsage', newDailyUsage);
-      updateDatabase('daily', newDailyUsage); // Duplicate into daily
-      return newDailyUsage;
-    });
-    setMonthlyUsage(prevUsage => {
-      const newMonthlyUsage = prevUsage + energyUsage;
-      updateDatabase('monthlyUsage', newMonthlyUsage);
-      updateDatabase('monthly', newMonthlyUsage); // Duplicate into monthly
-      return newMonthlyUsage;
-    });
-    setYearlyUsage(prevUsage => {
-      const newYearlyUsage = prevUsage + energyUsage;
-      updateDatabase('yearlyUsage', newYearlyUsage);
-      updateDatabase('yearly', newYearlyUsage); // Duplicate into yearly
-      return newYearlyUsage;
-    });
-  }, [usageTime, current]);
+  const resetDailyUsage = () => {
+    setDailykWh(0);
+    setUsageTime(0);
+    const dailykWhRef = ref(db, 'dailykWh');
+    const usageTimeRef = ref(db, 'usageTime');
+    set(dailykWhRef, 0).catch(error => console.error("Error resetting daily kWh: ", error));
+    set(usageTimeRef, 0).catch(error => console.error("Error resetting usage time: ", error));
+  };
 
   const updateDatabase = (path, value) => {
     const dbRef = ref(db, path);
     set(dbRef, value).catch(error => console.error(`Error updating ${path}: `, error));
   };
 
-  const resetDailyUsage = () => {
-    setDailyUsage(0);
-    setUsageTime(0);
-    updateDatabase('dailyUsage', 0);
-    updateDatabase('daily', 0); // Reset daily
-  };
-
   const resetMonthlyUsage = () => {
-    setMonthlyUsage(0);
-    updateDatabase('monthlyUsage', 0);
-    updateDatabase('monthly', 0); // Reset monthly
+    setMonthlykWh(0);
+    updateDatabase('monthlykWh', 0);
   };
 
   const resetYearlyUsage = () => {
-    setYearlyUsage(0);
-    updateDatabase('yearlyUsage', 0);
-    updateDatabase('yearly', 0); // Reset yearly
+    setYearlykWh(0);
+    updateDatabase('yearlykWh', 0);
   };
 
   return (
@@ -191,15 +120,15 @@ const Smarts = () => {
 
         <View style={styles.dataWrapperM}>
           <View style={styles.humid}>
-            <Text style={styles.dataText}>{dailyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.dataText}>{dailykWh.toFixed(2)} kWh</Text>
             <Text style={styles.title}>Dag</Text>
           </View>
           <View style={styles.humid}>
-            <Text style={styles.dataText}>{monthlyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.dataText}>{monthlykWh.toFixed(2)} kWh</Text>
             <Text style={styles.title}>Maand</Text>
           </View>
           <View style={styles.pressure}>
-            <Text style={styles.dataText}>{yearlyUsage.toFixed(2)} kWh</Text>
+            <Text style={styles.dataText}>{yearlykWh.toFixed(2)} kWh</Text>
             <Text style={styles.title}>Jaar</Text>
           </View>
         </View>
@@ -208,23 +137,20 @@ const Smarts = () => {
 
         <View style={styles.dataWrapper}>
           <View style={styles.humid}>
-            <Text style={styles.dataText}>{(dailyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.dataText}>{(dailykWh * 0.2).toFixed(2)} €</Text>
             <Text style={styles.title}>Dag</Text>
           </View>
           <View style={styles.humid}>
-            <Text style={styles.dataText}>{(monthlyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.dataText}>{(monthlykWh * 0.2).toFixed(2)} €</Text>
             <Text style={styles.title}>Maand</Text>
           </View>
           <View style={styles.pressure}>
-            <Text style={styles.dataText}>{(yearlyUsage * 0.2).toFixed(2)} €</Text>
+            <Text style={styles.dataText}>{(yearlykWh * 0.2).toFixed(2)} €</Text>
             <Text style={styles.title}>Jaar</Text>
           </View>
         </View>
         
         <Button title="Reset Daily Usage" onPress={resetDailyUsage} />
-        <Button title="Reset Monthly Usage" onPress={resetMonthlyUsage} />
-        <Button title="Reset Yearly Usage" onPress={resetYearlyUsage} />
-        
       </View>
     </ImageBackground>
   );
