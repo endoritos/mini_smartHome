@@ -1,178 +1,104 @@
 import React, { useEffect, useState, useRef } from 'react'; 
-// Importeer React en verschillende hooks van React
-
 import { StyleSheet, Text, View, ImageBackground, Button, Switch, Image } from 'react-native'; 
-// Importeer componenten van react-native
-
-import { db, ref, onValue, set } from "../firebase"; 
-// Importeer functies van de Firebase configuratie
-
+import { db, ref, onValue, set, get, child } from "../firebase"; 
 import background from "../assets/bbl.png"; 
-// Importeer de achtergrondafbeelding
-
 import windowOpen from "../assets/windowOpen.webp"; 
-// Importeer de afbeelding voor open raam
-
 import windowClosed from "../assets/windowClosed.webp"; 
-// Importeer de afbeelding voor gesloten raam
 
 const Smarts = () => {
-  const [windows, setWindows] = useState(false); 
-  // Definieer state voor ramen, initialiseer als false
+  const [windows, setWindows] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [dailykWh, setDailykWh] = useState(0);
+  const [monthlykWh, setMonthlykWh] = useState(0);
+  const [yearlykWh, setYearlykWh] = useState(0);
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [usageTime, setUsageTime] = useState(0);
+  const [usageHistory, setUsageHistory] = useState({});
+  const intervalRef = useRef(null);
 
-  const [current, setCurrent] = useState(0); 
-  // Definieer state voor huidige stroom, initialiseer als 0
-
-  const [dailykWh, setDailykWh] = useState(0); 
-  // Definieer state voor dagelijks kWh, initialiseer als 0
-
-  const [monthlykWh, setMonthlykWh] = useState(0); 
-  // Definieer state voor maandelijks kWh, initialiseer als 0
-
-  const [yearlykWh, setYearlykWh] = useState(0); 
-  // Definieer state voor jaarlijks kWh, initialiseer als 0
-
-  const [isEnabled, setIsEnabled] = useState(false); 
-  // Definieer state voor schakelaar, initialiseer als false
-
-  const [usageTime, setUsageTime] = useState(0); 
-  // Definieer state voor gebruikstijd, initialiseer als 0
-
-  const intervalRef = useRef(null); 
-  // Declareer intervalRef met useRef
-
-  const toggleSwitch = () => { 
-    // Functie om de schakelaar om te zetten
-    setIsEnabled(previousState => { 
-      // Wijzig de state van de schakelaar
-      const newState = !previousState; 
-      // Nieuwe toestand is het tegenovergestelde van de vorige
-
-      const switchRef = ref(db, 'light'); 
-      // Verwijzing naar de 'light' database
-
-      set(switchRef, newState).then(() => { 
-        // Update de database met de nieuwe schakelaarstand
-        console.log("Light switch state updated in database successfully."); 
-        // Log een succesbericht
-      }).catch((error) => { 
-        console.error("Error updating light switch state in database: ", error); 
-        // Log een foutbericht bij mislukking
+  const toggleSwitch = () => {
+    setIsEnabled(previousState => {
+      const newState = !previousState;
+      const switchRef = ref(db, 'light');
+      set(switchRef, newState).then(() => {
+        console.log("Light switch state updated in database successfully.");
+      }).catch((error) => {
+        console.error("Error updating light switch state in database: ", error);
       });
-
-      return newState; 
-      // Retourneer de nieuwe toestand
+      return newState;
     });
   };
 
-  useEffect(() => { 
-    // Gebruik useEffect om side-effects te beheren
-    const data = ref(db); 
-    // Verwijzing naar de gehele database
+  useEffect(() => {
+    const dataRef = ref(db);
+    onValue(dataRef, (snapshot) => {
+      const data = snapshot.val();
+      console.log("Firebase Data:", data);
 
-    onValue(data, (snapshot) => { 
-      // Voeg een listener toe voor wijzigingen in de database
-      const data = snapshot.val(); 
-      // Verkrijg de huidige waarden uit de snapshot
+      setIsEnabled(data.light);
+      setWindows(data.windows);
+      setCurrent(data.current);
+      setUsageTime(data.usageTime || 0);
+      setDailykWh(data.dailykWh || 0);
+      setMonthlykWh(data.monthlykWh || 0);
+      setYearlykWh(data.yearlykWh || 0);
 
-      console.log("Firebase Data:", data); 
-      // Log de ontvangen gegevens
-
-      setIsEnabled(data.light); 
-      // Stel de schakelaarstand in volgens de database
-
-      setWindows(data.windows); 
-      // Stel de raamstand in volgens de database
-
-      setCurrent(data.current); 
-      // Stel de huidige stroom in volgens de database
-
-      setUsageTime(data.usageTime || 0); 
-      // Stel de gebruikstijd in, of 0 als niet aanwezig
-
-      setDailykWh(data.dailykWh || 0); 
-      // Stel het dagelijks kWh in, of 0 als niet aanwezig
-
-      setMonthlykWh(data.monthlykWh || 0); 
-      // Stel het maandelijks kWh in, of 0 als niet aanwezig
-
-      setYearlykWh(data.yearlykWh || 0); 
-      // Stel het jaarlijks kWh in, of 0 als niet aanwezig
+      // Load usage history
+      if (data.usageHistory) {
+        setUsageHistory(data.usageHistory);
+      }
     });
 
-    intervalRef.current = setInterval(() => { 
-      // Stel een interval in dat elke minuut wordt uitgevoerd
-      const now = new Date(); 
-      // Verkrijg de huidige datum en tijd
-
-      if (now.getHours() === 0 && now.getMinutes() === 0) { 
-        resetDailyUsage(); 
-        // Reset dagelijks gebruik om middernacht
+    intervalRef.current = setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        resetDailyUsage();
       }
-
-      if (now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) { 
-        resetMonthlyUsage(); 
-        // Reset maandelijks gebruik op de eerste dag van de maand
+      if (now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
+        resetMonthlyUsage();
       }
-
-      if (now.getMonth() === 0 && now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) { 
-        resetYearlyUsage(); 
-        // Reset jaarlijks gebruik op de eerste dag van het jaar
+      if (now.getMonth() === 0 && now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
+        resetYearlyUsage();
       }
-    }, 60000); 
-    // Controleer elke minuut
+    }, 60000);
 
-    return () => { 
-      clearInterval(intervalRef.current); 
-      // Maak de interval schoon bij component unmount
+    return () => {
+      clearInterval(intervalRef.current);
     };
   }, []);
 
-  const resetDailyUsage = () => { 
-    setDailykWh(0); 
-    // Reset dagelijks kWh
-
-    setUsageTime(0); 
-    // Reset gebruikstijd
-
-    const dailykWhRef = ref(db, 'dailykWh'); 
-    // Verwijzing naar dailykWh in de database
-
-    const usageTimeRef = ref(db, 'usageTime'); 
-    // Verwijzing naar usageTime in de database
-
-    set(dailykWhRef, 0).catch(error => console.error("Error resetting daily kWh: ", error)); 
-    // Reset dailykWh in de database en log eventuele fouten
-
-    set(usageTimeRef, 0).catch(error => console.error("Error resetting usage time: ", error)); 
-    // Reset usageTime in de database en log eventuele fouten
+  const resetDailyUsage = () => {
+    setDailykWh(0);
+    setUsageTime(0);
+    const dailykWhRef = ref(db, 'dailykWh');
+    const usageTimeRef = ref(db, 'usageTime');
+    set(dailykWhRef, 0).catch(error => console.error("Error resetting daily kWh: ", error));
+    set(usageTimeRef, 0).catch(error => console.error("Error resetting usage time: ", error));
   };
 
-  const updateDatabase = (path, value) => { 
-    const dbRef = ref(db, path); 
-    // Verwijzing naar een specifiek pad in de database
-
-    set(dbRef, value).catch(error => console.error(`Error updating ${path}: `, error)); 
-    // Update de waarde in de database en log eventuele fouten
+  const updateDatabase = (path, value) => {
+    const dbRef = ref(db, path);
+    set(dbRef, value).catch(error => console.error(`Error updating ${path}: `, error));
   };
 
-  const resetMonthlyUsage = () => { 
-    setMonthlykWh(0); 
-    // Reset maandelijks kWh
-
-    updateDatabase('monthlykWh', 0); 
-    // Update de database voor maandelijks kWh
+  const resetMonthlyUsage = () => {
+    setMonthlykWh(0);
+    updateDatabase('monthlykWh', 0);
   };
 
-  const resetYearlyUsage = () => { 
-    setYearlykWh(0); 
-    // Reset jaarlijks kWh
-
-    updateDatabase('yearlykWh', 0); 
-    // Update de database voor jaarlijks kWh
+  const resetYearlyUsage = () => {
+    const currentYear = new Date().getFullYear();
+    const usageHistoryRef = ref(db, `usageHistory/${currentYear}`);
+    set(usageHistoryRef, yearlykWh).then(() => {
+      console.log("Yearly usage saved to history successfully.");
+      setYearlykWh(0);
+      updateDatabase('yearlykWh', 0);
+    }).catch(error => {
+      console.error("Error saving yearly usage to history: ", error);
+    });
   };
 
-  return ( 
+  return (
     <ImageBackground source={background} style={styles.backgroundImage}> 
       <View style={styles.spacer1}></View> 
       <View style={styles.container}>
@@ -229,26 +155,32 @@ const Smarts = () => {
           <View style={styles.humid}>
             <Text style={styles.dataText}>{(monthlykWh * 0.2).toFixed(2)} €</Text> 
             <Text style={styles.title}>Maand</Text> 
-          </
-
-View>
+          </View>
           <View style={styles.pressure}>
             <Text style={styles.dataText}>{(yearlykWh * 0.2).toFixed(2)} €</Text> 
             <Text style={styles.title}>Jaar</Text> 
           </View>
         </View>
-
-        <Button title="Reset Daily Usage" onPress={resetDailyUsage} /> 
-        // Knop om het dagelijks gebruik te resetten
+        <View style={styles.buttonContainer}>
+          <Button title=" Daily Demo" onPress={resetDailyUsage} />
+          <Button title=" Yearly Demo" onPress={resetYearlyUsage} />
       </View>
+      </View>
+
+      {/* <View style={styles.data}>
+        <Text style={styles.title}>Historisch Energie Gebruik</Text>
+        {Object.keys(usageHistory).map((year) => (
+          <View key={year} style={styles.humid}>
+            <Text style={styles.dataText}>{year}: {usageHistory[year]} kWh</Text>
+          </View>
+        ))}
+      </View> */}
     </ImageBackground>
   );
 };
 
-export default Smarts; 
-// Exporteer de Smarts component
+export default Smarts;
 
-// Styling voor de containers
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
@@ -313,6 +245,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "white",
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 10,
   },
   humid: {
     flex: 1,
