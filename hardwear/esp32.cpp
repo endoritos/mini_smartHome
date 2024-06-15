@@ -1,15 +1,17 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <FirebaseESP32.h>
-#include <TimeLib.h>
+#include <TimeLib.h>#include <iostream>
+#include "info.h"
+
 
 // Replace with your network credentials
-const char* ssid = "Proximus-Home-082778_EXTT";  // WiFi network name (SSID)
-const char* password = "9eecuxsk5y99dnh9";       // WiFi password
+const char* ssid = wifiname;  // WiFi network name (SSID)
+const char* password = wifipass;       // WiFi password
 
 // Replace with your Firebase project credentials
-#define FIREBASE_HOST "https://mini-smarthome-default-rtdb.europe-west1.firebasedatabase.app/"  // Firebase host URL
-#define FIREBASE_AUTH "AIzaSyC8zFLx8IrsQBwmAiceg8kFolwzvRIi2m4"  // Firebase authentication token
+#define FIREBASE_HOST Fhost // Firebase host URL
+#define FIREBASE_AUTH  FAuth  // Firebase authentication token
 
 // Define Firebase objects
 FirebaseData firebaseData;  // Firebase data object
